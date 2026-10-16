@@ -1,5 +1,6 @@
 package pt.unl.fct.di.syspriv.dp;
 
+import org.apache.commons.math3.distribution.LaplaceDistribution;
 import pt.unl.fct.di.syspriv.entities.DPResult;
 import pt.unl.fct.di.syspriv.storage.Hibernate;
 
@@ -46,15 +47,22 @@ public class DifferentialPrivacyTool {
 
     // TODO Right now this method does not provide Differential Privacy. Change it
     public DPResult countBelowGlucose(float privacyCost, int upperGlucose) {
+        var res = new DPResult();
+        if(privacyCost > privacyBudget){
+            res.setResultCode(DPResult.ResultCode.FAIL);
+            return res;
+        }
+
         var query = """
                 SELECT COUNT(*)
                 FROM health_data
                 WHERE glucose<%d
                 AND id IN (%s)
                 """.formatted(upperGlucose, idsStr);
-        var count = hibernate.sql(query, Integer.class).get(0);
-        var res = new DPResult();
-        res.setResultValue(count);
+        double count = hibernate.sql(query, Integer.class).get(0);
+        count += new LaplaceDistribution(0, 1 / privacyCost).sample();
+        privacyBudget -= privacyCost;
+        res.setResultValue((float)count);
         return res;
     }
 
@@ -66,6 +74,8 @@ public class DifferentialPrivacyTool {
                 WHERE id IN (%s)
                 """.formatted(idsStr);
         var sum = hibernate.sql(query, Float.class).get(0);
+        sum += new LaplaceDistribution(0, () / privacyBudget).sample();
+        privacyBudget -= privacyCost;
         var res = new DPResult();
         res.setResultValue(sum);
         return res;

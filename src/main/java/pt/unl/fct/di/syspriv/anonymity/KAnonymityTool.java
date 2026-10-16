@@ -31,7 +31,7 @@ public class KAnonymityTool<T extends Anonymizable> {
         // TODO
         return null;
     }
-
+/*
     public List<T> runMondrain(List<T> records) {
 
         List<T> leftEquivSet = new ArrayList<>();
@@ -51,7 +51,7 @@ public class KAnonymityTool<T extends Anonymizable> {
 
         return List.of(runMondrain(leftEquivSet), runMondrain(rightEquivSet));
     }
-
+*/
     private int sizeEquivSet(T rec, List<T> records){
         int n = 0;
 

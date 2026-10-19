@@ -64,6 +64,7 @@ public class XACMLPDP {
         Map<String, String> actionAttrs = new HashMap<>();
         Map<String, String> envAttrs = new HashMap<>();
 
+        // requester
         if (requester instanceof Patient pat){
             subjectAttrs.put("role", "Patient");
             subjectAttrs.put("id", String.valueOf(pat.getId()));
@@ -73,6 +74,7 @@ public class XACMLPDP {
             subjectAttrs.put("id", String.valueOf(emp.getId()));
         }
 
+        // resource
         if (resource instanceof Patient pat){
             resourceAttrs.put("id", String.valueOf(pat.getId()));
             resourceAttrs.put("doctor-id", String.valueOf(pat.getPrimaryDoctor().getId()));

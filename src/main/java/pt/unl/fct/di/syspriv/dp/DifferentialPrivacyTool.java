@@ -74,7 +74,7 @@ public class DifferentialPrivacyTool {
                 WHERE id IN (%s)
                 """.formatted(idsStr);
         var sum = hibernate.sql(query, Float.class).get(0);
-        sum += new LaplaceDistribution(0, () / privacyBudget).sample();
+        //sum += new LaplaceDistribution(0, () / privacyBudget).sample();
         privacyBudget -= privacyCost;
         var res = new DPResult();
         res.setResultValue(sum);

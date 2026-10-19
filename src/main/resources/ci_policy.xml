@@ -297,19 +297,170 @@
                                              MustBePresent="false"/>
                     </Apply>
                     <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
-
                         <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only">
                             <AttributeDesignator Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
                                                  AttributeId="resource-type"
                                                  DataType="http://www.w3.org/2001/XMLSchema#string"
                                                  MustBePresent="false"/>
                         </Apply>
-                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">Appointment</AttributeValue>
+                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">AppointmentData</AttributeValue>
                     </Apply>
                 </Apply>
             </Condition>
         </Rule>
-
     </Policy>
 
+    <Policy PolicyId="DoctorEmergency" Version="1.0"
+            RuleCombiningAlgId="urn:oasis:names:tc:xacml:1.0:rule-combining-algorithm:first-applicable">
+        <Description>
+            This Policy implements rule 6, which allows doctors and nurses to access any patient
+            data in an emergency. This works by checking that the access subject's role is Doctor
+            and the context is Emergency, or the access subject's role is Nurse and the context is
+            Emergency.
+        </Description>
+        <Target>
+            <AnyOf>
+                <AllOf>
+                    <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">Nurse</AttributeValue>
+                        <AttributeDesignator Category="urn:oasis:names:tc:xacml:1.0:subject-category:access-subject"
+                                             AttributeId="role" DataType="http://www.w3.org/2001/XMLSchema#string"
+                                             MustBePresent="false"/>
+                    </Match>
+                </AllOf>
+                <AllOf>
+                    <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">Doctor</AttributeValue>
+                        <AttributeDesignator Category="urn:oasis:names:tc:xacml:1.0:subject-category:access-subject"
+                                             AttributeId="role" DataType="http://www.w3.org/2001/XMLSchema#string"
+                                             MustBePresent="false"/>
+                    </Match>
+                </AllOf>
+            </AnyOf>
+        </Target>
+        <Rule RuleId="DoctorEmergencyRule" Effect="Permit">
+            <Description>
+                Given that we already checked the role in the target, here we need to check the
+                context and ensure that the resource being accessed is PatientData.
+            </Description>
+            <Condition>
+                <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:and">
+                    <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                        <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only">
+                            <AttributeDesignator Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+                                                 AttributeId="resource-type"
+                                                 DataType="http://www.w3.org/2001/XMLSchema#string"
+                                                 MustBePresent="false"/>
+                        </Apply>
+                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">PatientData</AttributeValue>
+                    </Apply>
+                    <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                        <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only">
+                            <AttributeDesignator Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+                                                 AttributeId="context"
+                                                 DataType="http://www.w3.org/2001/XMLSchema#string"
+                                                 MustBePresent="false"/>
+                        </Apply>
+                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">Emergency</AttributeValue>
+                    </Apply>
+                </Apply>
+            </Condition>
+        </Rule>
+    </Policy>
+
+    <Policy PolicyId="ITAdminEmergency" Version="1.0"
+            RuleCombiningAlgId="urn:oasis:names:tc:xacml:1.0:rule-combining-algorithm:first-applicable">
+        <Description>
+            This Policy implements the rule IT Admins can access any data in an emergency. We can
+            achieve this by checking if the role of the access subject is the ITAdmin. If this is
+            the case, we can move on to the rule.
+        </Description>
+        <Target>
+            <AnyOf>
+                <AllOf>
+                    <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">ITAdmin</AttributeValue>
+                        <AttributeDesignator Category="urn:oasis:names:tc:xacml:1.0:subject-category:access-subject"
+                                             AttributeId="role" DataType="http://www.w3.org/2001/XMLSchema#string"
+                                             MustBePresent="false"/>
+                    </Match>
+                </AllOf>
+            </AnyOf>
+        </Target>
+        <!-- Hint: we can implement this rule just with the target section. -->
+        <Rule RuleId="ITAdminEmergencyRule" Effect="Permit">
+            <Description> Check if emergency. </Description>
+            <Condition>
+                <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                    <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only">
+                        <AttributeDesignator Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+                                             AttributeId="context"
+                                             DataType="http://www.w3.org/2001/XMLSchema#string"
+                                             MustBePresent="false"/>
+                    </Apply>
+                    <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">Emergency</AttributeValue>
+                </Apply>
+            </Condition>
+        </Rule>
+    </Policy>
+
+    <Policy PolicyId="ITAdminHiring" Version="1.0"
+            RuleCombiningAlgId="urn:oasis:names:tc:xacml:1.0:rule-combining-algorithm:first-applicable">
+        <Description>
+            This Policy implements the rule that outside of an emergency IT Admins can only access
+            employee data for the purposes of hiring. To see if this rule should be applied, we
+            check if the role of the access subject is "ITAdmin".
+        </Description>
+        <Target>
+            <AnyOf>
+                <AllOf>
+                    <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">ITAdmin</AttributeValue>
+                        <AttributeDesignator Category="urn:oasis:names:tc:xacml:1.0:subject-category:access-subject"
+                                             AttributeId="role" DataType="http://www.w3.org/2001/XMLSchema#string"
+                                             MustBePresent="false"/>
+                    </Match>
+                </AllOf>
+            </AnyOf>
+        </Target>
+        <Rule RuleId="ITAdminHiringRule" Effect="Permit">
+            <Description>
+                We check to see if the access should be permitted if Resource is EmployeeData AND
+                Context is Hiring. This uses the same tricks as previous rules, so there is no need
+                to recover old ground.
+            </Description>
+            <Condition>
+                <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:and">
+                    <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                        <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only">
+                            <AttributeDesignator Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+                                                 AttributeId="resource-type"
+                                                 DataType="http://www.w3.org/2001/XMLSchema#string"
+                                                 MustBePresent="false"/>
+                        </Apply>
+                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">EmployeeData</AttributeValue>
+                    </Apply>
+                    <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                        <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only">
+                            <AttributeDesignator Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
+                                                 AttributeId="context"
+                                                 DataType="http://www.w3.org/2001/XMLSchema#string"
+                                                 MustBePresent="false"/>
+                        </Apply>
+                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">Hiring</AttributeValue>
+                    </Apply>
+                </Apply>
+            </Condition>
+        </Rule>
+    </Policy>
+
+    <!-- Default - Deny -->
+    <Policy PolicyId="DefaultDeny" Version="1.0"
+            RuleCombiningAlgId="urn:oasis:names:tc:xacml:1.0:rule-combining-algorithm:first-applicable">
+        <Description>
+            By default, we deny the rest.
+        </Description>
+        <Target />
+        <Rule RuleId="DenyAllRule" Effect="Deny"/>
+    </Policy>
 </PolicySet>

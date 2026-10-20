@@ -2,6 +2,7 @@ package pt.unl.fct.di.syspriv.entities;
 
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,6 +31,21 @@ public class Employee {
     @OneToMany(mappedBy = "primaryDoctor", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Patient> patients;
 
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "employeeSubject", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<ConsentRecord> consentRecords = new ArrayList<>();
+
+    @OneToMany(mappedBy = "employeeSubject", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<GdprRequest> gdprRequests = new ArrayList<>();
+
+    @Column(name = "retention_until")
+    private LocalDateTime retentionUtil;
+
     public Employee() {}
 
     public Employee(String name, String role, String department, Boolean isAdmin) {
@@ -55,6 +71,16 @@ public class Employee {
     public void setAppointments(List<Appointment> appointments) { this.appointments = appointments; }
     public List<Patient> getPatients() { return patients; }
     public void setPatients(List<Patient> patients) { this.patients = patients; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) {this.createdAt = createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) {this.updatedAt = updatedAt; }
+    public List<ConsentRecord> getConsentRecords() { return consentRecords; }
+    public void setConsentRecords(List<ConsentRecord> consentRecords){ this.consentRecords = consentRecords; }
+    public List<GdprRequest> getGdprRequests() { return gdprRequests; }
+    public void setGdprRequests(List<GdprRequest> gdprRequests){ this.gdprRequests = gdprRequests; }
+    public LocalDateTime getRetentionUtil() { return retentionUtil; }
+    public void setRetentionUtil(LocalDateTime retentionUtil) {this.retentionUtil = retentionUtil; }
 
     // For debugging and logging purposes.
     @Override

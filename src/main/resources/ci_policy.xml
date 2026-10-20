@@ -1,4 +1,184 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<PolicySet xmlns="urn:oasis:names:tc:xacml:3.0:core:schema:wd-17" PolicySetId="root-policy-set" Version="1.0" PolicyCombiningAlgId="urn:oasis:names:tc:xacml:3.0:policy-combining-algorithm:deny-overrides">
+    <Description>Root policy set - deny if either CI or GDPR policy denies</Description>
+    <Target/>
+    <PolicySet PolicySetId="GDPRPolicySet" Version="1.0"
+               PolicyCombiningAlgId="urn:oasis:names:tc:xacml:3.0:policy-combining-algorithm:deny-overrides">
+        <Target/>
+        <Policy PolicyId="ConsentPolicy" Version="1.0"
+                RuleCombiningAlgId="urn:oasis:names:tc:xacml:3.0:rule-combining-algorithm:deny-unless-permit">
+            <Target>
+                <AnyOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">marketing</AttributeValue>
+                            <AttributeDesignator Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                                 AttributeId="action-id"
+                                                 DataType="http://www.w3.org/2001/XMLSchema#string"
+                                                 MustBePresent="false"/>
+                        </Match>
+                    </AllOf>
+                </AnyOf>
+            </Target>
+            <Rule RuleId="ConsentPolicyRule" Effect="Permit">
+                <Condition>
+                    <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:and">
+                        <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">true</AttributeValue>
+                            <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only">
+                                <AttributeDesignator Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+                                                     AttributeId="consent-marketing"
+                                                     DataType="http://www.w3.org/2001/XMLSchema#string"
+                                                     MustBePresent="false"/>
+                            </Apply>
+                        </Apply>
+                        <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">false</AttributeValue>
+                            <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only">
+                                <AttributeDesignator Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+                                                     AttributeId="consent-withdrawn"
+                                                     DataType="http://www.w3.org/2001/XMLSchema#string"
+                                                     MustBePresent="false"/>
+                            </Apply>
+                        </Apply>
+                    </Apply>
+                </Condition>
+            </Rule>
+        </Policy>
+
+
+        <Policy PolicyId="ErasurePolicy" Version="1.0"
+                RuleCombiningAlgId="urn:oasis:names:tc:xacml:3.0:rule-combining-algorithm:deny-unless-permit">
+            <Target>
+                <AnyOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">true</AttributeValue>
+                            <AttributeDesignator Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+                                                 AttributeId="erasure-requested"
+                                                 DataType="http://www.w3.org/2001/XMLSchema#string"
+                                                 MustBePresent="false"/>
+                        </Match>
+                    </AllOf>
+                </AnyOf>
+            </Target>
+            <Rule RuleId="ErasurePolicyRule" Effect="Permit">
+                <Condition>
+                    <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">DPO</AttributeValue>
+                        <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only">
+                            <AttributeDesignator Category="urn:oasis:names:tc:xacml:1.0:subject-category:access-subject"
+                                                 AttributeId="role"
+                                                 DataType="http://www.w3.org/2001/XMLSchema#string"
+                                                 MustBePresent="false"/>
+                        </Apply>
+                    </Apply>
+                </Condition>
+            </Rule>
+        </Policy>
+
+
+        <Policy PolicyId="RetentionPolicy" Version="1.0"
+                RuleCombiningAlgId="urn:oasis:names:tc:xacml:3.0:rule-combining-algorithm:deny-unless-permit">
+            <Target>
+                <AnyOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">true</AttributeValue>
+                            <AttributeDesignator Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+                                                 AttributeId="retention-expired"
+                                                 DataType="http://www.w3.org/2001/XMLSchema#string"
+                                                 MustBePresent="false"/>
+                        </Match>
+                    </AllOf>
+                </AnyOf>
+            </Target>
+            <Rule RuleId="RetentionPolicyRule" Effect="Permit">
+                <Condition>
+                    <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-subset">
+                        <AttributeDesignator Category="urn:oasis:names:tc:xacml:1.0:subject-category:access-subject"
+                                             AttributeId="role"
+                                             DataType="http://www.w3.org/2001/XMLSchema#string"
+                                             MustBePresent="false"/>
+                        <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-bag">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">Auditor</AttributeValue>
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">DPO</AttributeValue>
+                        </Apply>
+                    </Apply>
+                </Condition>
+            </Rule>
+        </Policy>
+
+
+        <Policy PolicyId="SpecialCategoryPolicy" Version="1.0"
+                RuleCombiningAlgId="urn:oasis:names:tc:xacml:3.0:rule-combining-algorithm:deny-unless-permit">
+            <Target>
+                <AnyOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">health-data</AttributeValue>
+                            <AttributeDesignator Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+                                                 AttributeId="data-category"
+                                                 DataType="http://www.w3.org/2001/XMLSchema#string"
+                                                 MustBePresent="false"/>
+                        </Match>
+                    </AllOf>
+                </AnyOf>
+            </Target>
+            <Rule RuleId="SpecialCategoryPolicyRule" Effect="Permit">
+                <Condition>
+                    <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">true</AttributeValue>
+                        <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only">
+                            <AttributeDesignator Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+                                                 AttributeId="consent-research"
+                                                 DataType="http://www.w3.org/2001/XMLSchema#string"
+                                                 MustBePresent="false"/>
+                        </Apply>
+                    </Apply>
+                </Condition>
+            </Rule>
+        </Policy>
+
+
+        <Policy PolicyId="LawfulBasisPolicy" Version="1.0"
+                RuleCombiningAlgId="urn:oasis:names:tc:xacml:3.0:rule-combining-algorithm:deny-unless-permit">
+            <Target>
+                <AnyOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">read</AttributeValue>
+                            <AttributeDesignator Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                                 AttributeId="action-id"
+                                                 DataType="http://www.w3.org/2001/XMLSchema#string"
+                                                 MustBePresent="false"/>
+                        </Match>
+                    </AllOf>
+                </AnyOf>
+            </Target>
+            <Rule RuleId="LawfulBasisPolicyRule" Effect="Permit">
+                <Condition>
+                    <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-at-least-one-member-of">
+                        <AttributeDesignator Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+                                             AttributeId="lawful-basis"
+                                             DataType="http://www.w3.org/2001/XMLSchema#string"
+                                             MustBePresent="false"/>
+                        <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-bag">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">consent</AttributeValue>
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">contract</AttributeValue>
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">legal-obligation</AttributeValue>
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">vital-interests</AttributeValue>
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">public-task</AttributeValue>
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">legitimate-interests</AttributeValue>
+                        </Apply>
+                    </Apply>
+                </Condition>
+            </Rule>
+        </Policy>
+
+    </PolicySet>
+
+
 <PolicySet xmlns="urn:oasis:names:tc:xacml:3.0:core:schema:wd-17"
            PolicySetId="HospitalPolicySet"
            Version="1.0"
@@ -211,7 +391,7 @@
                         </Apply>
 
                     <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
-                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">BillingAndPayment</AttributeValue>
+                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">Billing and Payments</AttributeValue>
                         <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-one-and-only">
                             <AttributeDesignator Category="urn:oasis:names:tc:xacml:3.0:attribute-category:environment"
                                                  AttributeId="context"
@@ -223,7 +403,6 @@
             </Condition>
         </Rule>
     </Policy>
-
     <Policy PolicyId="DoctorOwnPatientsNonEmergency" Version="1.0"
             RuleCombiningAlgId="urn:oasis:names:tc:xacml:1.0:rule-combining-algorithm:first-applicable">
         <Description>
@@ -309,7 +488,6 @@
             </Condition>
         </Rule>
     </Policy>
-
     <Policy PolicyId="DoctorEmergency" Version="1.0"
             RuleCombiningAlgId="urn:oasis:names:tc:xacml:1.0:rule-combining-algorithm:first-applicable">
         <Description>
@@ -367,7 +545,6 @@
             </Condition>
         </Rule>
     </Policy>
-
     <Policy PolicyId="ITAdminEmergency" Version="1.0"
             RuleCombiningAlgId="urn:oasis:names:tc:xacml:1.0:rule-combining-algorithm:first-applicable">
         <Description>
@@ -403,7 +580,6 @@
             </Condition>
         </Rule>
     </Policy>
-
     <Policy PolicyId="ITAdminHiring" Version="1.0"
             RuleCombiningAlgId="urn:oasis:names:tc:xacml:1.0:rule-combining-algorithm:first-applicable">
         <Description>
@@ -463,4 +639,5 @@
         <Target />
         <Rule RuleId="DenyAllRule" Effect="Deny"/>
     </Policy>
+</PolicySet>
 </PolicySet>

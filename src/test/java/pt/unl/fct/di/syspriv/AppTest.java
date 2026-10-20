@@ -3,13 +3,14 @@ package pt.unl.fct.di.syspriv;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import pt.unl.fct.di.syspriv.entities.Appointment;
-import pt.unl.fct.di.syspriv.entities.Patient;
-import pt.unl.fct.di.syspriv.entities.Employee;
-import pt.unl.fct.di.syspriv.entities.Payment;
+import pt.unl.fct.di.syspriv.entities.*;
 import pt.unl.fct.di.syspriv.storage.Hibernate;
 import pt.unl.fct.di.syspriv.xacml.XACMLPDP;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Unit test for simple App.
@@ -79,10 +80,10 @@ public class AppTest {
 
         for (var accountant : accountants){
             for (var payment : payments){
-                assertTrue(pdp.checkAccess(accountant, payment, "BillingAndPayment"));
+                assertTrue(pdp.checkAccess(accountant, payment, "Billing and Payments"));
             }
             for (var employee : employees){
-                assertTrue(pdp.checkAccess(accountant, employee, "BillingAndPayment"));
+                assertTrue(pdp.checkAccess(accountant, employee, "Billing and Payments"));
             }
         }
     }
@@ -167,6 +168,76 @@ public class AppTest {
         for (var itAdmin : itAdmins){
             for (var employee : employees){
                 assertTrue(pdp.checkAccess(itAdmin, employee, "Hiring"));
+            }
+        }
+    }
+
+    // Lab 2
+    @BeforeAll
+    static void fillTestData() throws Exception {
+        var db = Hibernate.getInstance();
+        var doctors = db.sql("SELECT * FROM employees WHERE role = 'Doctor'", Employee.class);
+        assertFalse(doctors.isEmpty(), "No Doctor found to assign as primary doctor.");
+        Employee doctor = doctors.get(0);
+
+        patientMarketingTrueWithdrawFalse(db, doctor);
+        patientErasureRequest(db, doctor);
+        patientRetentionUntil(db, doctor);
+    }
+
+    // 1. Have at least one patient with marketing consent set to true and consent withdrawn set to false.
+    private static void patientMarketingTrueWithdrawFalse(Hibernate db, Employee doctor) throws Exception {
+        String query = "SELECT p.* FROM patients p JOIN consent_records c ON c.patient_subject_id = p.id " +
+                "WHERE c.purpose = 'marketing' AND c.granted = TRUE AND c.withdrawn_at IS NULL";
+        if (!db.sql(query, Patient.class).isEmpty()) return;
+
+        Patient p = new Patient("Patient 1", java.sql.Date.valueOf("2000-01-01"), "Insurance A", "Street 1", "2800-000", doctor);
+        ConsentRecord consent = new ConsentRecord("PATIENT", "marketing", true);
+        consent.setGrantedAt(LocalDateTime.now());
+        consent.setPolicyVersion("v1.0");
+        consent.setSource("web");
+        consent.setPatientSubject(p);
+        List<ConsentRecord> consents = p.getConsentRecords();
+        consents.add(consent);
+        p.setConsentRecords(consents);
+        db.persist(p);
+    }
+
+    // 2. Have at least one patient with an erasure request.
+    private static void patientErasureRequest(Hibernate db, Employee doctor) throws Exception {
+        String query = "SELECT p.* FROM patients p JOIN gdpr_requests g ON g.patient_subject_id = p.id " +
+                "WHERE g.request_type = 'ERASURE'";
+        if (!db.sql(query, Patient.class).isEmpty()) return;
+
+        Patient p = new Patient("Patient 2", java.sql.Date.valueOf("2000-01-01"), "Insurance B", "Street 2", "1234-567", doctor);
+        GdprRequest request = new GdprRequest("PATIENT", "ERASURE", LocalDateTime.now());
+        request.setPatientSubject(p);
+        List<GdprRequest> requests = p.getGdprRequests();
+        requests.add(request);
+        db.persist(p);
+    }
+
+    // 3. Insert at least one patient whose retentionUntil is in the past.
+    private static void patientRetentionUntil(Hibernate db, Employee doctor) throws Exception {
+        String query = "SELECT * FROM patients WHERE retention_until < CURRENT_TIMESTAMP";
+        if (!db.sql(query, Patient.class).isEmpty()) return;
+
+        Patient p = new Patient("Patient 3", java.sql.Date.valueOf("2000-01-01"), "Insurance C", "Street 3", "0987-654", doctor);
+        p.setRetentionUntil(LocalDateTime.now().minusYears(1));
+        db.persist(p);
+    }
+
+
+    // 1. Marketing is permitted when consent is granted and not withdrawn.
+    @Test
+    public void marketingWhenConsentAndNotWithdraw() throws Exception {
+        var db = Hibernate.getInstance();
+        var pdp = new XACMLPDP();
+        var employees = db.sql("SELECT * FROM employees", Employee.class);
+
+        for (var employee : employees){
+            for(var consent : employee.getConsentRecords()){
+                if(consent.granted())
             }
         }
     }

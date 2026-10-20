@@ -59,40 +59,12 @@ public class XACMLPDP {
     }
 
     public boolean checkAccess(Object requester, Object resource, String context) throws Exception {
-        Map<String, String> subjectAttrs = new HashMap<>();
-        Map<String, String> resourceAttrs = new HashMap<>();
+        Map<String, String> subjectAttrs = buildSubjectAttrs(requester);
+        Map<String, String> resourceAttrs = buildResourceAttrs(resource);
         Map<String, String> actionAttrs = new HashMap<>();
         Map<String, String> envAttrs = new HashMap<>();
 
-        // requester
-        if (requester instanceof Patient pat){
-            subjectAttrs.put("role", "Patient");
-            subjectAttrs.put("id", String.valueOf(pat.getId()));
-
-        }else if( requester instanceof Employee emp){
-            subjectAttrs.put("role", emp.getRole());
-            subjectAttrs.put("id", String.valueOf(emp.getId()));
-        }
-
-        // resource
-        if (resource instanceof Patient pat){
-            resourceAttrs.put("id", String.valueOf(pat.getId()));
-            resourceAttrs.put("doctor-id", String.valueOf(pat.getPrimaryDoctor().getId()));
-            resourceAttrs.put("resource-type", "PatientData");
-        } else if (resource instanceof Employee emp){
-            resourceAttrs.put("id", String.valueOf(emp.getId()));
-            resourceAttrs.put("resource-type", "EmployeeData");
-        } else if (resource instanceof Appointment app){
-            resourceAttrs.put("id", String.valueOf(app.getId()));
-            resourceAttrs.put("doctor-id", String.valueOf(app.getEmployee().getId()));
-            resourceAttrs.put("resource-type", "AppointmentData");
-        } else if (resource instanceof Payment pay) {
-            resourceAttrs.put("id", String.valueOf(pay.getId()));
-            resourceAttrs.put("resource-type", "PaymentData");
-        }
-
         envAttrs.put("context", context);
-        
         actionAttrs.put("action-id", "read");
 
         DecisionRequestBuilder<?> requestBuilder = pdp.newRequestBuilder(-1, -1);
@@ -105,9 +77,75 @@ public class XACMLPDP {
         var request = requestBuilder.build(true);
         logger.debug(request.toString());
         DecisionResult result = pdp.evaluate(request);
-        
+
         logger.debug(result.toString());
         return result.getDecision() == DecisionType.PERMIT;
+    }
+
+    public boolean checkAccessGDPR(Object requester, Object resource, String context, String action) throws Exception {
+        Map<String, String> subjectAttrs = buildSubjectAttrs(requester);
+        Map<String, String> resourceAttrs = buildResourceAttrs(resource);
+        Map<String, String> actionAttrs = new HashMap<>();
+        Map<String, String> envAttrs = new HashMap<>();
+
+        envAttrs.put("context", context);
+        actionAttrs.put("action-id", action);
+
+        if (resource instanceof Patient pat) {
+            for (ConsentRecord consent : pat.getConsentRecords()) {
+                if (consent.getPurpose().equals(action)) {
+                    resourceAttrs.put("consent-granted", String.valueOf(consent.getGranted()));
+                    resourceAttrs.put("consent-withdrawn", String.valueOf(consent.getWithdrawnAt() != null));
+                    break;
+                }
+            }
+        }
+
+        DecisionRequestBuilder<?> requestBuilder = pdp.newRequestBuilder(-1, -1);
+
+        addAttributes(requestBuilder, SUBJECT_CATEGORY, subjectAttrs);
+        addAttributes(requestBuilder, RESOURCE_CATEGORY, resourceAttrs);
+        addAttributes(requestBuilder, ACTION_CATEGORY, actionAttrs);
+        addAttributes(requestBuilder, ENV_CATEGORY, envAttrs);
+
+        var request = requestBuilder.build(true);
+        logger.debug(request.toString());
+        DecisionResult result = pdp.evaluate(request);
+
+        logger.debug(result.toString());
+        return result.getDecision() == DecisionType.PERMIT;
+    }
+
+    private Map<String, String> buildSubjectAttrs(Object requester) {
+        Map<String, String> subjectAttrs = new HashMap<>();
+        if (requester instanceof Patient pat) {
+            subjectAttrs.put("role", "Patient");
+            subjectAttrs.put("id", String.valueOf(pat.getId()));
+        } else if (requester instanceof Employee emp) {
+            subjectAttrs.put("role", emp.getRole());
+            subjectAttrs.put("id", String.valueOf(emp.getId()));
+        }
+        return subjectAttrs;
+    }
+
+    private Map<String, String> buildResourceAttrs(Object resource) {
+        Map<String, String> resourceAttrs = new HashMap<>();
+        if (resource instanceof Patient pat) {
+            resourceAttrs.put("id", String.valueOf(pat.getId()));
+            resourceAttrs.put("doctor-id", String.valueOf(pat.getPrimaryDoctor().getId()));
+            resourceAttrs.put("resource-type", "PatientData");
+        } else if (resource instanceof Employee emp) {
+            resourceAttrs.put("id", String.valueOf(emp.getId()));
+            resourceAttrs.put("resource-type", "EmployeeData");
+        } else if (resource instanceof Appointment app) {
+            resourceAttrs.put("id", String.valueOf(app.getId()));
+            resourceAttrs.put("doctor-id", String.valueOf(app.getEmployee().getId()));
+            resourceAttrs.put("resource-type", "AppointmentData");
+        } else if (resource instanceof Payment pay) {
+            resourceAttrs.put("id", String.valueOf(pay.getId()));
+            resourceAttrs.put("resource-type", "PaymentData");
+        }
+        return resourceAttrs;
     }
 
     private void addAttributes(DecisionRequestBuilder<?> requestBuilder, String category, Map<String, String> attrs) {

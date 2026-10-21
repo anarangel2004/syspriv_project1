@@ -43,10 +43,10 @@ public class Patient {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "patientSubject", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "patientSubject", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<ConsentRecord> consentRecords = new ArrayList<>();
 
-    @OneToMany(mappedBy = "patientSubject", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "patientSubject", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<GdprRequest> gdprRequests = new ArrayList<>();
 
     @Column(name = "retention_until")

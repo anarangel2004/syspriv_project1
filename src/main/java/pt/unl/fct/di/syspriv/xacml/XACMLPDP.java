@@ -94,7 +94,7 @@ public class XACMLPDP {
         if (resource instanceof Patient pat) {
             for (ConsentRecord consent : pat.getConsentRecords()) {
                 if (consent.getPurpose().equals(action)) {
-                    resourceAttrs.put("consent-granted", String.valueOf(consent.getGranted()));
+                    resourceAttrs.put("consent-" + action, String.valueOf(consent.getGranted()));
                     resourceAttrs.put("consent-withdrawn", String.valueOf(consent.getWithdrawnAt() != null));
                     break;
                 }

@@ -629,15 +629,5 @@
             </Condition>
         </Rule>
     </Policy>
-
-    <!-- Default - Deny -->
-    <Policy PolicyId="DefaultDeny" Version="1.0"
-            RuleCombiningAlgId="urn:oasis:names:tc:xacml:1.0:rule-combining-algorithm:first-applicable">
-        <Description>
-            By default, we deny the rest.
-        </Description>
-        <Target />
-        <Rule RuleId="DenyAllRule" Effect="Deny"/>
-    </Policy>
 </PolicySet>
 </PolicySet>

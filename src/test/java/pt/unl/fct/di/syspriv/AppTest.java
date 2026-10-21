@@ -174,7 +174,7 @@ public class AppTest {
 
     // Lab 2
     @BeforeAll
-    static void fillTestData() throws Exception {
+    static void fillTestData() {
         var db = Hibernate.getInstance();
         var doctors = db.sql("SELECT * FROM employees WHERE role = 'Doctor'", Employee.class);
         assertFalse(doctors.isEmpty(), "No Doctor found to assign as primary doctor.");
@@ -186,10 +186,8 @@ public class AppTest {
     }
 
     // 1. Have at least one patient with marketing consent set to true and consent withdrawn set to false.
-    private static void patientMarketingTrueWithdrawFalse(Hibernate db, Employee doctor) throws Exception {
-        String query = "SELECT p.* FROM patients p JOIN consent_records c ON c.patient_subject_id = p.id " +
-                "WHERE c.purpose = 'marketing' AND c.granted = TRUE AND c.withdrawn_at IS NULL";
-        if (!db.sql(query, Patient.class).isEmpty()) return;
+    private static void patientMarketingTrueWithdrawFalse(Hibernate db, Employee doctor) {
+        deletePatientByName(db, "Patient 1");
 
         Patient p = new Patient("Patient 1", java.sql.Date.valueOf("2000-01-01"), "Insurance A", "Street 1", "2800-000", doctor);
         ConsentRecord consent = new ConsentRecord("PATIENT", "marketing", true);
@@ -204,12 +202,11 @@ public class AppTest {
     }
 
     // 2. Have at least one patient with an erasure request.
-    private static void patientErasureRequest(Hibernate db, Employee doctor) throws Exception {
-        String query = "SELECT p.* FROM patients p JOIN gdpr_requests g ON g.patient_subject_id = p.id " +
-                "WHERE g.request_type = 'ERASURE'";
-        if (!db.sql(query, Patient.class).isEmpty()) return;
+    private static void patientErasureRequest(Hibernate db, Employee doctor) {
+        deletePatientByName(db, "Patient 2");
 
         Patient p = new Patient("Patient 2", java.sql.Date.valueOf("2000-01-01"), "Insurance B", "Street 2", "1234-567", doctor);
+        p.setErasureRequested(true);
         GdprRequest request = new GdprRequest("PATIENT", "ERASURE", LocalDateTime.now());
         request.setPatientSubject(p);
         List<GdprRequest> requests = p.getGdprRequests();
@@ -218,26 +215,161 @@ public class AppTest {
     }
 
     // 3. Insert at least one patient whose retentionUntil is in the past.
-    private static void patientRetentionUntil(Hibernate db, Employee doctor) throws Exception {
-        String query = "SELECT * FROM patients WHERE retention_until < CURRENT_TIMESTAMP";
-        if (!db.sql(query, Patient.class).isEmpty()) return;
+    private static void patientRetentionUntil(Hibernate db, Employee doctor) {
+        deletePatientByName(db, "Patient 3");
 
         Patient p = new Patient("Patient 3", java.sql.Date.valueOf("2000-01-01"), "Insurance C", "Street 3", "0987-654", doctor);
         p.setRetentionUntil(LocalDateTime.now().minusYears(1));
         db.persist(p);
     }
 
+    private static void deletePatientByName(Hibernate db, String name) {
+        List<Patient> patients = db.sql("SELECT * FROM patients WHERE name = '" + name + "'", Patient.class);
+        for (Patient patient : patients) {
+            db.delete(patient);
+        }
+    }
 
     // 1. Marketing is permitted when consent is granted and not withdrawn.
     @Test
-    public void marketingWhenConsentAndNotWithdraw() throws Exception {
+    public void marketingWhenConsentAndNotWithdrawn() throws Exception {
         var db = Hibernate.getInstance();
         var pdp = new XACMLPDP();
         var employees = db.sql("SELECT * FROM employees", Employee.class);
+        var patients = db.sql("SELECT * FROM patients", Patient.class);
 
-        for (var employee : employees){
-            for(var consent : employee.getConsentRecords()){
-                if(consent.granted())
+        for (var patient : patients) {
+            for (var consent : patient.getConsentRecords()) {
+                if (consent.getPurpose().equals("marketing") && consent.getGranted() && consent.getWithdrawnAt() == null) {
+                    for (var employee : employees) {
+                        assertTrue(pdp.checkAccessGDPR(employee, patient, "marketing", "marketing"));
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Marketing is denied when consent is withdrawn.
+    @Test
+    public void marketingDeniedWhenConsentWithdrawn() throws Exception {
+        var db = Hibernate.getInstance();
+        var pdp = new XACMLPDP();
+        var employees = db.sql("SELECT * FROM employees", Employee.class);
+        var patients = db.sql("SELECT * FROM patients", Patient.class);
+
+        for (var patient : patients) {
+            for (var consent : patient.getConsentRecords()) {
+                if (consent.getPurpose().equals("marketing") && consent.getWithdrawnAt() != null) {
+                    for (var employee : employees) {
+                        assertFalse(pdp.checkAccessGDPR(employee, patient, "marketing", "marketing"));
+                    }
+                }
+            }
+        }
+    }
+
+
+    // 3. Marketing is denied when consent was never granted.
+    @Test
+    public void marketingDeniedWhenConsentNotGranted() throws Exception {
+        var db = Hibernate.getInstance();
+        var pdp = new XACMLPDP();
+        var employees = db.sql("SELECT * FROM employees", Employee.class);
+        var patients = db.sql("SELECT * FROM patients", Patient.class);
+
+        for (var patient : patients) {
+            for (var consent : patient.getConsentRecords()) {
+                if (consent.getPurpose().equals("marketing") && !consent.getGranted()){
+                    for (var employee : employees) {
+                        assertFalse(pdp.checkAccessGDPR(employee, patient, "marketing", "marketing"));
+                    }
+                }
+            }
+        }
+    }
+
+    //4. A doctor cannot access a record where erasure-requested == true
+    @Test
+    public void doctorCannotAccessWhenErasureRequested() throws Exception {
+        var db = Hibernate.getInstance();
+        var pdp = new XACMLPDP();
+        var patients = db.sql("SELECT * FROM patients WHERE erasure_requested = TRUE", Patient.class);
+
+        for (var patient : patients) {
+            var doctor = patient.getPrimaryDoctor();
+            assertFalse(pdp.checkAccessGDPR(doctor, patient, "", "read"));
+        }
+    }
+
+    //5. A DPO can access a record where erasure-requested == true.
+    @Test
+    public void dpoAccessWhenErasureRequested() throws Exception {
+        var db = Hibernate.getInstance();
+        var pdp = new XACMLPDP();
+        var dpos = db.sql("SELECT * FROM employees WHERE role = 'DPO'", Employee.class);
+        var patients = db.sql("SELECT * FROM patients WHERE erasure_requested = TRUE", Patient.class);
+
+        for (var dpo : dpos){
+            for (var patient : patients) {
+                assertTrue(pdp.checkAccessGDPR(dpo, patient, "", "read"));
+            }
+        }
+    }
+
+    //6. A doctor cannot access a record where retention-expired == true.
+    @Test
+    public void doctorCannotAccessWhenRetentionExpired() throws Exception {
+        var db = Hibernate.getInstance();
+        var pdp = new XACMLPDP();
+        var patients = db.sql("SELECT * FROM patients WHERE retention_until < CURRENT_TIMESTAMP", Patient.class);
+
+        for (var patient : patients) {
+            var doctor = patient.getPrimaryDoctor();
+            assertFalse(pdp.checkAccessGDPR(doctor, patient, "", "read"));
+        }
+    }
+
+    //7. An auditor can access a record where retention-expired == true.
+    @Test
+    public void auditorAccessWhenRetentionExpired() throws Exception {
+        var db = Hibernate.getInstance();
+        var pdp = new XACMLPDP();
+        var auditors = db.sql("SELECT * FROM employees WHERE role = 'Auditor'", Employee.class);
+        var patients = db.sql("SELECT * FROM patients WHERE retention_until < CURRENT_TIMESTAMP", Patient.class);
+
+        for (var auditor : auditors) {
+            for (var patient : patients) {
+                assertTrue(pdp.checkAccessGDPR(auditor, patient, "", "read"));
+            }
+        }
+    }
+
+    //8. Health data is denied unless consent-research == true.
+    @Test
+    public void healthDataDeniedUnlessResearchConsent() throws Exception {
+        var db = Hibernate.getInstance();
+        var pdp = new XACMLPDP();
+        var doctors = db.sql("SELECT * FROM employees WHERE role = 'Doctor'", Employee.class);
+        var patients = db.sql("SELECT * FROM patients", Patient.class);
+
+        for (var doctor : doctors) {
+            for (var patient : patients) {
+                boolean erased = Boolean.TRUE.equals(patient.getErasureRequested());
+                boolean expired = patient.getRetentionUntil() != null && patient.getRetentionUntil().isBefore(LocalDateTime.now());
+                if (erased || expired) continue;
+
+                boolean consents = false;
+                for (var c : patient.getConsentRecords()) {
+                    if (c.getPurpose().equals("research") && c.getGranted() && c.getWithdrawnAt() == null) {
+                        consents = true;
+                        break;
+                    }
+                }
+
+                if (consents)
+                    assertTrue(pdp.checkAccessGDPR(doctor, patient, "research", "research"));
+                else
+                    assertFalse(pdp.checkAccessGDPR(doctor, patient, "research", "research"));
             }
         }
     }

@@ -47,6 +47,10 @@ public class ConsentRecord {
         this.subjectType = subjectType;
         this.purpose = purpose;
         this.granted = granted;
+        if(granted) {
+            this.grantedAt = LocalDateTime.now();
+        }
+        this.setPolicyVersion("v1.0");
     }
 
     public Long getId() {
@@ -109,6 +113,7 @@ public class ConsentRecord {
 
     public void setGranted(Boolean granted) {
         this.granted = granted;
+        grantedAt = LocalDateTime.now();
     }
 
     public LocalDateTime getGrantedAt() {

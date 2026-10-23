@@ -312,9 +312,9 @@ public class DataSafe {
         }
 
         try {
-            ObjectMapper mapper = new ObjectMapper();
-            String json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(export);
-            System.out.println(json);
+     //       ObjectMapper mapper = new ObjectMapper();
+    //        String json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(export);
+   //         System.out.println(json);
         } catch (Exception e) {
             logger.error("Failed to export data: " + e.getMessage());
         }
@@ -397,7 +397,7 @@ public class DataSafe {
             return;
         }
 
-        pat.setErasureRequested(true);
+     //   pat.setErasureRequested(true);
 
         GdprRequest request = new GdprRequest("PATIENT", "ERASURE", LocalDateTime.now());
         request.setPatientSubject(pat);
@@ -414,7 +414,7 @@ public class DataSafe {
             hibernate.update(pay);
         }
 
-        pat.setErasureCompletedAt(LocalDateTime.now());
+    //    pat.setErasureCompletedAt(LocalDateTime.now());
         hibernate.update(pat);
 
         System.out.println("Erasure request completed. Your data has been anonymized.");

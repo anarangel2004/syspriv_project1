@@ -1,6 +1,7 @@
 package pt.unl.fct.di.syspriv.entities;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -53,10 +54,8 @@ public class Patient {
     private LocalDateTime retentionUntil;
 
     @Column(name = "erasure_requested")
-    private Boolean erasureRequested = false;
-
-    @Column(name = "erasure_completed_at")
-    private LocalDateTime erasureCompletedAt;
+    @ColumnDefault("false")
+    private boolean erasureRequested;
 
     public Patient() {}
 
@@ -93,14 +92,20 @@ public class Patient {
     public void setUpdatedAt(LocalDateTime updatedAt) {this.updatedAt = updatedAt; }
     public List<ConsentRecord> getConsentRecords() { return consentRecords; }
     public void setConsentRecords(List<ConsentRecord> consentRecords){ this.consentRecords = consentRecords; }
+    public void addConsentRecord(ConsentRecord consentRecord){ this.consentRecords.add(consentRecord); }
     public List<GdprRequest> getGdprRequests() { return gdprRequests; }
     public void setGdprRequests(List<GdprRequest> gdprRequests){ this.gdprRequests = gdprRequests; }
+    public void addGdprRecord(GdprRequest gdprRequest) {
+        this.gdprRequests.add(gdprRequest);
+        if ("ERASURE".equals(gdprRequest.getRequestType())) {
+            this.erasureRequested = true;
+        }
+    }
     public LocalDateTime getRetentionUntil() { return retentionUntil; }
     public void setRetentionUntil(LocalDateTime retentionUtil) {this.retentionUntil = retentionUtil; }
-    public Boolean getErasureRequested() { return erasureRequested; }
-    public void setErasureRequested(Boolean erasureRequested) { this.erasureRequested = erasureRequested; }
-    public LocalDateTime getErasureCompletedAt() { return erasureCompletedAt; }
-    public void setErasureCompletedAt(LocalDateTime erasureCompletedAt) { this.erasureCompletedAt = erasureCompletedAt; }
+    public boolean getErasureRequested() { return erasureRequested; }
+    public void setErasureRequested(boolean erasureRequested) { this.erasureRequested = erasureRequested; }
+
 
     // For debugging and logging purposes.
     @Override

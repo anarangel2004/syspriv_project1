@@ -1,34 +1,41 @@
 package pt.unl.fct.di.syspriv.xacml;
 
-import pt.unl.fct.di.syspriv.util.ConfigLoader;
 import pt.unl.fct.di.syspriv.entities.*;
 
 import org.ow2.authzforce.core.pdp.api.*;
 import org.ow2.authzforce.core.pdp.api.value.*;
 import org.ow2.authzforce.core.pdp.impl.BasePdpEngine;
 import org.ow2.authzforce.core.pdp.impl.PdpEngineConfiguration;
-import org.ow2.authzforce.xacml.identifiers.XacmlStatusCode;
 import org.ow2.authzforce.core.pdp.api.value.Bags;
-import org.ow2.authzforce.core.pdp.api.value.Datatype;
 import org.ow2.authzforce.core.pdp.api.value.StandardDatatypes;
 import org.ow2.authzforce.core.pdp.api.value.StringValue;
 import oasis.names.tc.xacml._3_0.core.schema.wd_17.DecisionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.logging.log4j.Level;
 
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.*;
-import org.apache.commons.io.IOUtils;
 
 public class XACMLPDP {
+
+    private static final Map<String, String> LAWFUL_BASIS_BY_CONTEXT = Map.ofEntries(
+            Map.entry("Access", "legal-obligation"),
+            Map.entry("Appointment", "contract"),
+            Map.entry("Scheduling", "contract"),
+            Map.entry("Check-in", "contract"),
+            Map.entry("Billing and Payments", "contract"),
+            Map.entry("Emergency", "vital-interests"),
+            Map.entry("Hiring", "contract"),
+            Map.entry("research", "consent"),
+            Map.entry("marketing", "consent"),
+            Map.entry("GDPR Request", "legal-obligation"),
+            Map.entry("Audit", "legal-obligation")
+    );
 
     // Standard XACML category URNs
     private static final String SUBJECT_CATEGORY = "urn:oasis:names:tc:xacml:1.0:subject-category:access-subject";
@@ -64,6 +71,9 @@ public class XACMLPDP {
         Map<String, String> actionAttrs = new HashMap<>();
         Map<String, String> envAttrs = new HashMap<>();
 
+        String basis = LAWFUL_BASIS_BY_CONTEXT.get(context);
+        if (basis != null) resourceAttrs.put("lawful-basis", basis);
+
         envAttrs.put("context", context);
         actionAttrs.put("action-id", "read");
 
@@ -88,17 +98,28 @@ public class XACMLPDP {
         Map<String, String> actionAttrs = new HashMap<>();
         Map<String, String> envAttrs = new HashMap<>();
 
+        String basis = LAWFUL_BASIS_BY_CONTEXT.get(context);
+        if (basis != null) resourceAttrs.put("lawful-basis", basis);
+
         envAttrs.put("context", context);
         actionAttrs.put("action-id", action);
 
         if (resource instanceof Patient pat) {
+            ConsentRecord latest = null;
             for (ConsentRecord consent : pat.getConsentRecords()) {
-                if (consent.getPurpose().equals(action)) {
-                    resourceAttrs.put("consent-" + action, String.valueOf(consent.getGranted()));
-                    resourceAttrs.put("consent-withdrawn", String.valueOf(consent.getWithdrawnAt() != null));
-                    break;
+                if (consent.getPurpose().equals(action) &&(latest == null || consent.getGrantedAt().isAfter(latest.getGrantedAt()))) {
+                    latest = consent;
                 }
             }
+            if (latest != null) {
+                boolean active = Boolean.TRUE.equals(latest.getGranted()) && latest.getWithdrawnAt() == null;
+                resourceAttrs.put("consent-" + action, String.valueOf(active));
+                resourceAttrs.put("consent-withdrawn", String.valueOf(latest.getWithdrawnAt() != null));
+            }
+        }
+
+        if ("research".equals(action)) {
+            resourceAttrs.put("data-category", "health-data");
         }
 
         DecisionRequestBuilder<?> requestBuilder = pdp.newRequestBuilder(-1, -1);
@@ -133,6 +154,9 @@ public class XACMLPDP {
         if (resource instanceof Patient pat) {
             resourceAttrs.put("id", String.valueOf(pat.getId()));
             resourceAttrs.put("doctor-id", String.valueOf(pat.getPrimaryDoctor().getId()));
+            resourceAttrs.put("erasure-requested", String.valueOf(pat.getErasureRequested()));
+            if(pat.getRetentionUntil() != null)
+                resourceAttrs.put("retention-expired", String.valueOf(pat.getRetentionUntil().isBefore(LocalDateTime.now())));
             resourceAttrs.put("resource-type", "PatientData");
         } else if (resource instanceof Employee emp) {
             resourceAttrs.put("id", String.valueOf(emp.getId()));

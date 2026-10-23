@@ -142,7 +142,7 @@
 
 
         <Policy PolicyId="LawfulBasisPolicy" Version="1.0"
-                RuleCombiningAlgId="urn:oasis:names:tc:xacml:3.0:rule-combining-algorithm:deny-unless-permit">
+                RuleCombiningAlgId="urn:oasis:names:tc:xacml:3.0:rule-combining-algorithm:deny-overrides">
             <Target>
                 <AnyOf>
                     <AllOf>
@@ -156,20 +156,22 @@
                     </AllOf>
                 </AnyOf>
             </Target>
-            <Rule RuleId="LawfulBasisPolicyRule" Effect="Permit">
+            <Rule RuleId="LawfulBasisPolicyRule" Effect="Deny">
                 <Condition>
-                    <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-at-least-one-member-of">
-                        <AttributeDesignator Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
-                                             AttributeId="lawful-basis"
-                                             DataType="http://www.w3.org/2001/XMLSchema#string"
-                                             MustBePresent="false"/>
-                        <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-bag">
-                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">consent</AttributeValue>
-                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">contract</AttributeValue>
-                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">legal-obligation</AttributeValue>
-                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">vital-interests</AttributeValue>
-                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">public-task</AttributeValue>
-                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">legitimate-interests</AttributeValue>
+                    <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:not">
+                        <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-at-least-one-member-of">
+                            <AttributeDesignator Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+                                                 AttributeId="lawful-basis"
+                                                 DataType="http://www.w3.org/2001/XMLSchema#string"
+                                                 MustBePresent="false"/>
+                            <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-bag">
+                                <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">consent</AttributeValue>
+                                <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">contract</AttributeValue>
+                                <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">legal-obligation</AttributeValue>
+                                <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">vital-interests</AttributeValue>
+                                <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">public-task</AttributeValue>
+                                <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">legitimate-interests</AttributeValue>
+                            </Apply>
                         </Apply>
                     </Apply>
                 </Condition>

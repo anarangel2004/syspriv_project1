@@ -13,45 +13,128 @@ public class KAnonymityTool<T extends Anonymizable> {
     }
 
     public boolean isKAnonymous(List<T> records) {
-        for (T rec: records){
-            int n = sizeEquivSet(rec, records);
-
-            if (n < k)
-                return false;
+        for (T record : records) {
+            int n = sizeEquivSet(record, records);
+            if (n < k) return false;
         }
         return true;
     }
 
     public boolean isTClose(List<T> P, List<T> Q){
-        // TODO
-        return false;
+        if (P.isEmpty() || Q.isEmpty())
+            return false;
+
+        List<Float> pList = new ArrayList<>(); // p list with only sensitive values
+        List<Float> qList = new ArrayList<>(); // q list with only sensitive values
+        for (T rec : P)
+            pList.add(((Number) rec.getSensitiveValue()).floatValue());
+        for (T rec : Q)
+            qList.add(((Number) rec.getSensitiveValue()).floatValue());
+
+        TreeSet<Float> qSet = new TreeSet<>(qList);
+        qSet.addAll(pList);
+        float sum = 0;
+        float running = 0;
+
+        for (Float q : qSet){
+            float shareQ = sizeSensitiveSet(q, qList) / (float) Q.size();
+            float shareP = sizeSensitiveSet(q, pList) / (float) P.size();
+            running += shareP - shareQ;
+            sum += Math.abs(running);
+        }
+
+        return sum / (qSet.size() - 1) <= t;
     }
 
     public Map<Map<String, Object>, Set<Object>> sensitiveValuesPerGroup(List<T> records) {
-        // TODO
-        return null;
-    }
-/*
-    public List<T> runMondrain(List<T> records) {
+        Map<Map<String, Object>, Set<Object>> groups = new HashMap<>();
 
-        List<T> leftEquivSet = new ArrayList<>();
-        List<T> rightEquivSet = new ArrayList<>();
+        for (T rec : records) {
+            Map<String, Object> qi = new HashMap<>(rec.getQuasiIdentifiers());
 
-        for(String dim : records.get(0).getQuasiIdentifiers().keySet()){
-            float median = getMedian(records, dim);
-            for( T rec : records){
-                if (rec.getQuasiIdentifiers().get(dim) < median)
-                    leftEquivSet.add(rec);
-                else
-                    rightEquivSet.add(rec);
+            if (!groups.containsKey(qi)) {
+                groups.put(qi, new HashSet<>());
             }
 
+            groups.get(qi).add(rec.getSensitiveValue());
         }
 
-
-        return List.of(runMondrain(leftEquivSet), runMondrain(rightEquivSet));
+        return groups;
     }
-*/
+
+    public List<T> runMondrain(List<T> records) {
+        if (records.isEmpty())
+            return records;
+
+        for(String dim : records.get(0).getQuasiIdentifiers().keySet()){
+            List<T> leftEquivSet = new ArrayList<>();
+            List<T> rightEquivSet = new ArrayList<>();
+
+            float median = getMedian(records, dim);
+
+            for(T rec : records){
+                float value = rec.getQuasiIdentifiers().get(dim);
+
+                if (value < median){
+                    leftEquivSet.add(rec);
+                }
+                else{
+                    rightEquivSet.add(rec);
+                }
+            }
+
+            if(leftEquivSet.size() >= k && rightEquivSet.size() >= k){ // split again
+                List<T> newLeftEquivSet = new ArrayList<>(runMondrain(leftEquivSet));
+                List<T> newRightEquivSet = new ArrayList<>(runMondrain(rightEquivSet));
+                newLeftEquivSet.addAll(newRightEquivSet);
+                return newLeftEquivSet;
+            }
+
+            // try different dim
+        }
+
+        return generalizePartition(records);
+    }
+
+    public List<T> runTCloseMondrain(List<T> records) {
+        return runTCloseMondrain(records, records);
+    }
+
+    public List<T> runTCloseMondrain(List<T> records, List<T> originalRecords) {
+        if (records.isEmpty())
+            return records;
+
+        for(String dim : records.get(0).getQuasiIdentifiers().keySet()){
+            List<T> leftEquivSet = new ArrayList<>();
+            List<T> rightEquivSet = new ArrayList<>();
+
+            float median = getMedian(records, dim);
+
+            for(T rec : records){
+                float value = rec.getQuasiIdentifiers().get(dim);
+
+                if (value < median){
+                    leftEquivSet.add(rec);
+                }
+                else{
+                    rightEquivSet.add(rec);
+                }
+            }
+
+            if(leftEquivSet.size() >= k && rightEquivSet.size() >= k
+                && isTClose(leftEquivSet, originalRecords) && isTClose(rightEquivSet, originalRecords)){ // split again
+                List<T> newLeftEquivSet = new ArrayList<>(runTCloseMondrain(leftEquivSet, originalRecords));
+                List<T> newRightEquivSet = new ArrayList<>(runTCloseMondrain(rightEquivSet, originalRecords));
+                newLeftEquivSet.addAll(newRightEquivSet);
+                return newLeftEquivSet;
+            }
+
+            // try different dim
+        }
+
+        return generalizePartition(records);
+    }
+
     private int sizeEquivSet(T rec, List<T> records){
         int n = 0;
 
@@ -62,10 +145,20 @@ public class KAnonymityTool<T extends Anonymizable> {
         return n;
     }
 
+    private int sizeSensitiveSet(float value, List<Float> values){
+        int n = 0;
+
+        for(float v : values){
+            if(v == value)
+                n++;
+        }
+        return n;
+    }
+
     private float getMedian(List<T> records, String dim){
         List<Float> values = new ArrayList<>();
         for (T r : records) {
-            values.add(((Number) r.getQuasiIdentifiers().get(dim)).floatValue());
+            values.add(r.getQuasiIdentifiers().get(dim));
         }
         Collections.sort(values);
 
@@ -76,4 +169,29 @@ public class KAnonymityTool<T extends Anonymizable> {
         return ((values.get(n / 2 - 1) + values.get(n / 2)) / 2);
     }
 
+    private List<T> generalizePartition(List<T> records) {
+        Map<String, Float> min = new HashMap<>();
+        Map<String, Float> max = new HashMap<>();
+
+        for (String dim : records.get(0).getQuasiIdentifiers().keySet()) {
+            float currentMin = Float.MAX_VALUE;
+            float currentMax = -Float.MAX_VALUE;
+
+            for (T rec : records) {
+                float value = rec.getQuasiIdentifiers().get(dim);
+
+                currentMin = Math.min(currentMin, value);
+                currentMax = Math.max(currentMax, value);
+            }
+
+            min.put(dim, currentMin);
+            max.put(dim, currentMax);
+        }
+
+        for (T rec : records) {
+            rec.generalize(min, max);
+        }
+
+        return records;
+    }
 }

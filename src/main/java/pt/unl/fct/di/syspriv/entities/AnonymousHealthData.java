@@ -60,11 +60,11 @@ public class AnonymousHealthData implements Anonymizable {
     }
 
     @Override
-    public Map<String, Double> getQuasiIdentifiers() {
-        Map<String, Double> map = new HashMap<>();
+    public Map<String, Float> getQuasiIdentifiers() {
+        Map<String, Float> map = new HashMap<>();
 
-        map.put("postalCode", (double) patientPostalCode);
-        map.put("birthdayYear", (double) patientBirthYear);
+        map.put("postalCode", patientPostalCode);
+        map.put("birthdayYear", patientBirthYear);
 
         return map;
     }
@@ -77,5 +77,11 @@ public class AnonymousHealthData implements Anonymizable {
     @Override
     public boolean haveSameQI(Anonymizable other) {
         return getQuasiIdentifiers().equals(other.getQuasiIdentifiers());
+    }
+
+    @Override
+    public void generalize(Map<String, Float> min, Map<String, Float> max) {
+        patientBirthYear = (float) ((min.get("birthdayYear") + max.get("birthdayYear")) / 2);
+        patientPostalCode = (float) ((min.get("postalCode") + max.get("postalCode")) / 2);
     }
 }

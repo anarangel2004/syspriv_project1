@@ -118,10 +118,6 @@ public class XACMLPDP {
             }
         }
 
-        if ("research".equals(action)) {
-            resourceAttrs.put("data-category", "health-data");
-        }
-
         DecisionRequestBuilder<?> requestBuilder = pdp.newRequestBuilder(-1, -1);
 
         addAttributes(requestBuilder, SUBJECT_CATEGORY, subjectAttrs);
@@ -168,6 +164,10 @@ public class XACMLPDP {
         } else if (resource instanceof Payment pay) {
             resourceAttrs.put("id", String.valueOf(pay.getId()));
             resourceAttrs.put("resource-type", "PaymentData");
+        } else if (resource instanceof HealthData healthData){
+            resourceAttrs.put("id", String.valueOf(healthData.getId()));
+            resourceAttrs.put("data-category", "health-data");
+            resourceAttrs.put("resource-type", "HealthData");
         }
         return resourceAttrs;
     }
